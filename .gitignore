@@ -42,6 +42,7 @@ build/Release
 
 public/
 scripts/
+script/
 
 # Dependency directories
 node_modules/
