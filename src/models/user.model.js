@@ -32,7 +32,7 @@ const UserSchema = new Schema({
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-UserSchema.index({ email: 1 }, { unique: true });
+// UserSchema.index({ email: 1 }, { unique: true }); // Removed as per request
 
 const User = mongoose.model("User", UserSchema);
 export default User;
