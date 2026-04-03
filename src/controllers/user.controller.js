@@ -5,11 +5,15 @@ import { ApiError } from "../utils/ApiError.js";
 // Create User
 export const createUser = async (req, res, next) => {
     try {
-        const { name, uniqueId, email, phoneNo, password, role, companyId, permissions } = req.body;
-        const creatorRole = req.user.role;
+        const { name, uniqueId, email, phoneNo, password, systemRole, companyId, permissions } = req.body;
+        const creatorRole = req.user.systemRole;
 
-        // Validation for creator role vs requested role
-        if (creatorRole === "admin" && role !== "subadmin") {
+        if (!uniqueId) throw new ApiError(400, "uniqueId is required for the user");
+        if (!name) throw new ApiError(400, "name is required");
+        if (!password || password.length < 6) throw new ApiError(400, "password is required (min 6 chars)");
+
+        // Validation for creator systemRole vs requested systemRole
+        if (creatorRole === "admin" && systemRole !== "subadmin") {
             return next(new ApiError(403, "Admins can only create subadmins."));
         }
         if (creatorRole === "subadmin") {
@@ -19,12 +23,18 @@ export const createUser = async (req, res, next) => {
         // Validate company logic
         let assignedCompanyId = req.user.company; // default to creator's company 
         if (creatorRole === "super_admin") {
-            if (role === "admin" || role === "subadmin") {
+            if (systemRole === "admin" || systemRole === "subadmin") {
                 if (!companyId) return next(new ApiError(400, "Please provide a company id mapping for this user."));
                 assignedCompanyId = companyId;
             } else {
                 assignedCompanyId = null; // another super_admin
             }
+        }
+
+        // phone uniqueness
+        if (phoneNo) {
+            const existingPhone = await User.findOne({ company: assignedCompanyId, phoneNo: phoneNo.toString().trim() }).lean().select("_id");
+            if (existingPhone) throw new ApiError(409, "PhoneNo already used within this company");
         }
 
         const existingUser = await User.findOne({ $or: [{ email }, { uniqueId }] });
@@ -38,7 +48,7 @@ export const createUser = async (req, res, next) => {
             email,
             phoneNo,
             passwordHash,
-            role: role || (creatorRole === "super_admin" ? "admin" : "subadmin"),
+            systemRole: systemRole || (creatorRole === "super_admin" ? "admin" : "subadmin"),
             company: assignedCompanyId,
             permissions: permissions || [],
             createdBy: req.user._id
@@ -62,17 +72,17 @@ export const createUser = async (req, res, next) => {
 // Get List of Users
 export const getUsers = async (req, res, next) => {
     try {
-        const { role, company } = req.user;
+        const { systemRole, company } = req.user;
         let query = {};
 
-        if (role === ("admin")) {
+        if (systemRole === ("admin")) {
             query.company = company;
-        } else if (role === "subadmin") {
+        } else if (systemRole === "subadmin") {
             return next(new ApiError(403, "Subadmins cannot view user lists."));
         }
 
         const users = await User.find(query).select("-passwordHash").populate("company", "name companyId");
-        
+
         res.status(200).json({
             success: true,
             users

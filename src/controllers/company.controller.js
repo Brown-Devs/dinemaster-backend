@@ -1,5 +1,6 @@
 import Company from "../models/company.model.js";
 import User from "../models/user.model.js";
+import CompanySubscription from "../models/companySubscription.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import bcrypt from "bcryptjs";
 
@@ -48,6 +49,63 @@ export const createCompany = async (req, res, next) => {
             adminCreated: !!createdAdmin
         });
 
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Update Company (super_admin only)
+export const updateCompany = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const company = await Company.findById(id);
+        if (!company) return next(new ApiError(404, "Company not found"));
+
+        const {
+            name, contactPhone, altContactPhone, email, address,
+            gstNo, logo, logoKey, invoiceTerms, modules,
+            billing, subscription
+        } = req.body;
+
+        // Apply scalar field updates
+        if (name !== undefined)             company.name = name;
+        if (contactPhone !== undefined)     company.contactPhone = contactPhone;
+        if (altContactPhone !== undefined)  company.altContactPhone = altContactPhone;
+        if (email !== undefined)            company.email = email;
+        if (address !== undefined)          company.address = address;
+        if (gstNo !== undefined)            company.gstNo = gstNo;
+        if (logo !== undefined)             company.logo = logo;
+        if (logoKey !== undefined)          company.logoKey = logoKey;
+        if (invoiceTerms !== undefined)     company.invoiceTerms = invoiceTerms;
+        if (modules !== undefined)          company.modules = modules;
+        if (billing?.plan !== undefined)    company.billing.plan = billing.plan;
+
+        // Optionally create a new CompanySubscription
+        let newSubscription = null;
+        if (subscription) {
+            const { currentPeriodStart, currentPeriodEnd, status, graceDays } = subscription;
+
+            newSubscription = await CompanySubscription.create({
+                company: company._id,
+                currentPeriodStart: new Date(currentPeriodStart),
+                currentPeriodEnd: new Date(currentPeriodEnd),
+                status: status || "active",
+                graceDays: graceDays ?? 5
+            });
+
+            // Link subscription to company
+            company.billing.subscriptionRef = newSubscription._id;
+        }
+
+        await company.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Company updated successfully",
+            company,
+            ...(newSubscription && { subscription: newSubscription })
+        });
     } catch (error) {
         next(error);
     }
