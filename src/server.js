@@ -16,7 +16,8 @@ const io = new Server(server, {
     cors: {
         origin: [
             "http://localhost:3000",
-            "https://dinemaster.browndevs.com"
+            "https://dinemaster.browndevs.com",
+            "https://dinemaster-frontend.vercel.app/"
         ],
         credentials: true
     }
