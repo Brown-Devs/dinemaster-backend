@@ -34,7 +34,7 @@ const BrandProductSchema = new Schema({
     },
     variants: [VariantSchema],
 
-    imageURL: {
+    imageUrl: {
         type: String,
         default: ""
     },

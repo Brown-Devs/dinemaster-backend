@@ -19,7 +19,7 @@ export const bulkImportFromMaster = asyncHandler(async (req, res) => {
 
     // Fetch all requested items from the master catalog
     const masterProducts = await MasterCatalog.find({ _id: { $in: masterCatalogIds } });
-    
+
     if (masterProducts.length === 0) {
         throw new ApiError(404, "None of the provided master catalog IDs were found.");
     }
@@ -37,18 +37,18 @@ export const bulkImportFromMaster = asyncHandler(async (req, res) => {
 
     // Handle Category Mapping
     const masterCategoryNames = [...new Set(masterProducts.map(p => p.category).filter(Boolean))];
-    
+
     // Find or create categories for this company
-    const existingCategories = await Category.find({ 
-        company: assignedCompanyId, 
-        name: { $in: masterCategoryNames } 
+    const existingCategories = await Category.find({
+        company: assignedCompanyId,
+        name: { $in: masterCategoryNames }
     });
 
     const existingCatMap = {};
     existingCategories.forEach(c => { existingCatMap[c.name] = c._id; });
 
     const missingCatNames = masterCategoryNames.filter(name => !existingCatMap[name]);
-    
+
     if (missingCatNames.length > 0) {
         const newCategories = await Category.insertMany(
             missingCatNames.map(name => ({ name, company: assignedCompanyId }))
@@ -69,7 +69,7 @@ export const bulkImportFromMaster = asyncHandler(async (req, res) => {
             variants: masterProd.variants,
             company: assignedCompanyId,
             masterCatalog: masterProd._id,
-            imageURL: masterProd.imageURL || "",
+            imageUrl: masterProd.imageUrl || "",
             active: true,
             inStock: true,
             orderCount: 0
@@ -80,19 +80,19 @@ export const bulkImportFromMaster = asyncHandler(async (req, res) => {
     }
 
     return res.status(201).json(new ApiResponse(
-        201, 
-        { 
-            importedCount: importedProducts.length, 
+        201,
+        {
+            importedCount: importedProducts.length,
             requestedCount: masterCatalogIds.length,
-            data: importedProducts 
-        }, 
+            data: importedProducts
+        },
         `Successfully imported ${importedProducts.length} master products into the brand catalog.`
     ));
 });
 
 // 2. Singular Manual Brand Product creation
 export const createBrandProduct = asyncHandler(async (req, res) => {
-    const { name, category, description, variants, imageURL, companyId } = req.body;
+    const { name, category, description, variants, imageUrl, companyId } = req.body;
 
     const { assignedCompanyId } = getAssignedCompanyId(req, companyId);
 
@@ -104,7 +104,7 @@ export const createBrandProduct = asyncHandler(async (req, res) => {
     if (category) {
         const isValidId = mongoose.Types.ObjectId.isValid(category);
         const query = { company: assignedCompanyId };
-        
+
         if (isValidId) {
             query._id = category;
         } else {
@@ -122,7 +122,7 @@ export const createBrandProduct = asyncHandler(async (req, res) => {
         category: mappedCategoryId,
         description,
         variants: variants || [],
-        imageURL: imageURL || "",
+        imageUrl: imageUrl || "",
         company: assignedCompanyId,
         active: true,
         inStock: true,
@@ -156,9 +156,9 @@ export const createBrandProduct = asyncHandler(async (req, res) => {
 export const getBrandProducts = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, search, type, category, companyId } = req.query;
     const { assignedCompanyId } = getAssignedCompanyId(req, companyId);
-    
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     let query = { company: assignedCompanyId };
 
     // Search filter
@@ -205,7 +205,7 @@ export const getBrandProducts = asyncHandler(async (req, res) => {
 // 4. Update Brand Product
 export const updateBrandProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, category, description, variants, imageURL, active, inStock, companyId } = req.body;
+    const { name, category, description, variants, imageUrl, active, inStock, companyId } = req.body;
     const { assignedCompanyId } = getAssignedCompanyId(req, companyId);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -221,7 +221,7 @@ export const updateBrandProduct = asyncHandler(async (req, res) => {
     if (name) product.name = name;
     if (description !== undefined) product.description = description;
     if (variants) product.variants = variants;
-    if (imageURL !== undefined) product.imageURL = imageURL;
+    if (imageUrl !== undefined) product.imageUrl = imageUrl;
     if (active !== undefined) product.active = active;
     if (inStock !== undefined) product.inStock = inStock;
 
