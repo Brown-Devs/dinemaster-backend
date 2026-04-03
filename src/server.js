@@ -1,15 +1,43 @@
 import dotenv from "dotenv";
-import app from "./app.js";
-import connectDB from "./config/db.js";
-
+import http from "http";
 dotenv.config();
 
-const PORT = process.env.PORT || 5000;
+import { connectDB } from "./config/db.js";
+import app from "./app.js";
+import { Server } from "socket.io";
+import { initSocket } from "./socket.js";
+import { setIO } from "./utils/socketEmitter.js";
 
-connectDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server is running on port: ${PORT}`);
-    });
-}).catch((err) => {
-    console.log("DB connection failed !!! ", err);
+const PORT = process.env.PORT || 8000;
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+    cors: {
+        origin: [
+            "http://localhost:3000",
+            "https://dinemaster.browndevs.com"
+        ],
+        credentials: true
+    }
 });
+
+// init socket AFTER io is created
+initSocket(io);
+
+// Make io available to cron / services
+setIO(io);
+
+const startServer = async () => {
+    try {
+        await connectDB();
+
+        server.listen(PORT, () => {
+            console.log(`🚀 Server + Socket running at http://localhost:${PORT}`);
+        });
+    } catch (error) {
+        console.error("❌ Failed to start server:", error.message);
+    }
+};
+
+startServer();

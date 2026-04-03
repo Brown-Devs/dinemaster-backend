@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^5.13.23"
+    "mongoose": "^5.13.23",
+    "socket.io": "^4.8.3",
+    "uuid": "^13.0.0"
   }
 }
