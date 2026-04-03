@@ -1,12 +1,24 @@
 import express from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
-import { getMasterCatalogs, getUniqueMasterCategories } from "../controllers/masterCatalog.controller.js";
+import { 
+    getMasterCatalogs, 
+    getUniqueMasterCategories, 
+    getNotImportedMasterProducts, 
+    updateMasterProduct 
+} from "../controllers/masterCatalog.controller.js";
 
 const router = express.Router();
 
+// Bulk product fetch (authenticated)
 router.get("/", authenticate, getMasterCatalogs);
 
-// Must be defined before any dynamic /:id parameters inherently
+// Fetch products NOT yet imported by the company (authenticated)
+router.get("/not-imported", authenticate, getNotImportedMasterProducts);
+
+// Fetch unique categories for filtering (authenticated)
 router.get("/categories", authenticate, getUniqueMasterCategories);
+
+// Update a master catalog product (restricted to super_admin via controller check)
+router.patch("/:id", authenticate, updateMasterProduct);
 
 export default router;
