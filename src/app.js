@@ -41,6 +41,8 @@ app.get("/", (req, res) => {
     });
 });
 
+// api routes
+
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/companies", companyRoutes);
@@ -48,6 +50,8 @@ app.use("/api/v1/companies", companyRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/master-catalogs", masterCatalogRoutes);
 app.use("/api/brand-products", brandProductRoutes);
+
+
 
 // --- Global error handler ---
 app.use((err, req, res, next) => {
