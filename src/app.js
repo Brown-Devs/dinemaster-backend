@@ -46,9 +46,9 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/companies", companyRoutes);
 
-app.use("/api/categories", categoryRoutes);
-app.use("/api/master-catalogs", masterCatalogRoutes);
-app.use("/api/brand-products", brandProductRoutes);
+app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/master-catalogs", masterCatalogRoutes);
+app.use("/api/v1/brand-products", brandProductRoutes);
 
 
 
