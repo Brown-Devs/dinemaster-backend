@@ -9,8 +9,6 @@ import categoryRoutes from "./routes/category.routes.js";
 import masterCatalogRoutes from "./routes/masterCatalog.routes.js";
 import brandProductRoutes from "./routes/brandProduct.routes.js";
 
-dotenv.config();
-
 const app = express();
 
 // --- Middleware ---
