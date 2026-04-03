@@ -9,6 +9,8 @@ import categoryRoutes from "./routes/category.routes.js";
 import masterCatalogRoutes from "./routes/masterCatalog.routes.js";
 import brandProductRoutes from "./routes/brandProduct.routes.js";
 
+dotenv.config();
+
 const app = express();
 
 // --- Middleware ---
@@ -22,7 +24,6 @@ app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-<<<<<<< HEAD
 app.use(cors({
     origin: [
         "http://localhost:3000",
@@ -32,15 +33,6 @@ app.use(cors({
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
 }));
-=======
-// Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/companies", companyRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/master-catalogs", masterCatalogRoutes);
-app.use("/api/brand-products", brandProductRoutes);
->>>>>>> cb5683619b4fafd3c5c089f4b88240e22e3bca4a
 
 app.get("/", (req, res) => {
     res.json({
@@ -53,6 +45,9 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/companies", companyRoutes);
 
+app.use("/api/categories", categoryRoutes);
+app.use("/api/master-catalogs", masterCatalogRoutes);
+app.use("/api/brand-products", brandProductRoutes);
 
 // --- Global error handler ---
 app.use((err, req, res, next) => {

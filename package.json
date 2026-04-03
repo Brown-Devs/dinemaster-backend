@@ -15,15 +15,11 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-<<<<<<< HEAD
     "mongoose": "^5.13.23",
     "socket.io": "^4.8.3",
     "uuid": "^13.0.0"
-=======
-    "mongoose": "^5.13.23"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
->>>>>>> cb5683619b4fafd3c5c089f4b88240e22e3bca4a
   }
 }
