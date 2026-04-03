@@ -13,7 +13,7 @@ const VariantSchema = new Schema({
     },
     discountedPrice: {
         type: Number,
-        required: true
+        // required: true
     }
 }, { _id: false });
 
@@ -34,24 +34,25 @@ const BrandProductSchema = new Schema({
     },
     variants: [VariantSchema],
 
-    iconURL: {
-        imageURL: { type: String, default: "" }
+    imageURL: {
+        type: String,
+        default: ""
     },
 
     // --- Addons ---
-    
+
     // Reference to the company (brand)
-    company: { 
-        type: Schema.Types.ObjectId, 
+    company: {
+        type: Schema.Types.ObjectId,
         ref: 'Company',
         required: true,
         index: true
     },
 
     // Reference to the master catalog product it was imported from
-    masterCatalog: { 
-        type: Schema.Types.ObjectId, 
-        ref: 'MasterCatalog' 
+    masterCatalog: {
+        type: Schema.Types.ObjectId,
+        ref: 'MasterCatalog'
     },
 
     // Order metrics

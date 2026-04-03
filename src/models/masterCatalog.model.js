@@ -13,7 +13,7 @@ const VariantSchema = new Schema({
     },
     discountedPrice: {
         type: Number,
-        required: true
+        // required: true
     }
 }, { _id: false });
 
@@ -37,9 +37,9 @@ const MasterCatalogSchema = new Schema({
 
     // Some lines have this as a stringified object '{"imageURL":"..."}' or similar.
     // Making it a Mixed type or an Object to safely embed whatever is parsed from the CSV.
-    iconURL: {
-        imageURL: { type: String, default: "" }
-    },
+    // iconURL: {
+    imageURL: { type: String, default: "" },
+    // },
 
     // The date from the CSV will map here
     createdAt: {
