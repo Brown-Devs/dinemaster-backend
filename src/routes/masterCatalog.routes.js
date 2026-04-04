@@ -5,7 +5,8 @@ import {
     getUniqueMasterCategories, 
     getNotImportedMasterProducts, 
     updateMasterProduct,
-    createMasterProduct
+    createMasterProduct,
+    deleteMasterProduct
 } from "../controllers/masterCatalog.controller.js";
 
 const router = express.Router();
@@ -24,5 +25,8 @@ router.post("/", authenticate, createMasterProduct);
 
 // Update a master catalog product (restricted to super_admin via controller check)
 router.patch("/:id", authenticate, updateMasterProduct);
+
+// Delete a master catalog product (restricted to super_admin via controller check)
+router.delete("/:id", authenticate, deleteMasterProduct);
 
 export default router;
