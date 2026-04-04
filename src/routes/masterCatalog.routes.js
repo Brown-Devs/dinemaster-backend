@@ -4,7 +4,8 @@ import {
     getMasterCatalogs, 
     getUniqueMasterCategories, 
     getNotImportedMasterProducts, 
-    updateMasterProduct 
+    updateMasterProduct,
+    createMasterProduct
 } from "../controllers/masterCatalog.controller.js";
 
 const router = express.Router();
@@ -17,6 +18,9 @@ router.get("/not-imported", authenticate, getNotImportedMasterProducts);
 
 // Fetch unique categories for filtering (authenticated)
 router.get("/categories", authenticate, getUniqueMasterCategories);
+
+// Create a new master catalog product (restricted to super_admin via controller check)
+router.post("/", authenticate, createMasterProduct);
 
 // Update a master catalog product (restricted to super_admin via controller check)
 router.patch("/:id", authenticate, updateMasterProduct);
