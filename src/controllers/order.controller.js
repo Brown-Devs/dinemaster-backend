@@ -15,13 +15,13 @@ const getAssignedCompanyId = (req) => {
 
 // Create a new order
 export const createOrder = asyncHandler(async (req, res) => {
-    const { 
+    const {
         customer: customerData, // Expected: { name, mobileNo }
-        items, 
+        items,
         additionalDiscount = 0,
         paymentStatus,
         payments,
-        orderType 
+        orderType
     } = req.body;
 
     const assignedCompanyId = getAssignedCompanyId(req);
@@ -36,21 +36,21 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     if (!orderType) {
-        throw new ApiError(400, "Order type is required (dinein, homeDelivery, packing).");
+        throw new ApiError(400, "Order type is required (dinein, delivery, packing).");
     }
 
     // 1. Calculate price securely (or rely on what was sent)
     let subTotal = 0;
-    
+
     // ensure structured items match schema and sum correctly
     const processedItems = items.map(item => {
         let itemBasePrice = item.variant?.price || 0;
         let addonsPrice = 0;
-        
+
         if (item.addOns && Array.isArray(item.addOns)) {
             addonsPrice = item.addOns.reduce((sum, addon) => sum + (addon.price || 0), 0);
         }
-        
+
         const itemTotal = (itemBasePrice + addonsPrice) * (item.quantity || 1);
         subTotal += itemTotal;
 
@@ -72,9 +72,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     // 2. Lookup or create customer
-    let customer = await Customer.findOne({ 
-        mobileNo: customerData.mobileNo.trim(), 
-        company: assignedCompanyId 
+    let customer = await Customer.findOne({
+        mobileNo: customerData.mobileNo.trim(),
+        company: assignedCompanyId
     });
 
     if (customer) {
@@ -130,18 +130,18 @@ export const createOrder = asyncHandler(async (req, res) => {
 
 // Get paginated orders with advanced filters
 export const getOrders = asyncHandler(async (req, res) => {
-    const { 
-        page = 1, 
-        limit = 10, 
-        status, 
-        orderType, 
+    const {
+        page = 1,
+        limit = 10,
+        status,
+        orderType,
         paymentStatus,
         paymentMode, // cash, online, mix
-        fromDate, 
-        toDate, 
-        minAmount, 
+        fromDate,
+        toDate,
+        minAmount,
         maxAmount,
-        searchQuery 
+        searchQuery
     } = req.query;
 
     const assignedCompanyId = getAssignedCompanyId(req);
@@ -151,7 +151,7 @@ export const getOrders = asyncHandler(async (req, res) => {
     const skip = (parsedPage - 1) * parsedLimit;
 
     const query = { company: assignedCompanyId };
-    
+
     // Status & Type Filters
     if (status) query.status = status;
     if (orderType) query.orderType = orderType;
@@ -171,9 +171,16 @@ export const getOrders = asyncHandler(async (req, res) => {
 
     // Date Filtering
     if (fromDate || toDate) {
-        query.createdAt = {};
-        if (fromDate) query.createdAt.$gte = new Date(fromDate);
-        if (toDate) query.createdAt.$lte = new Date(toDate);
+        const start = fromDate ? new Date(fromDate) : new Date("2026-04-01");
+        start.setHours(0, 0, 0, 0);
+
+        const end = toDate ? new Date(toDate) : new Date();
+        end.setHours(23, 59, 59, 999);
+
+        query.createdAt = {
+            $gte: start,
+            $lte: end
+        };
     }
 
     // Amount Filtering
@@ -217,6 +224,7 @@ export const getOrders = asyncHandler(async (req, res) => {
     const count = await Order.countDocuments(query);
     const orders = await Order.find(query)
         .populate("customer", "name mobileNo")
+        .populate("items.productId", "name imageUrl")
         .populate("createdBy", "name")
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -236,12 +244,12 @@ export const getOrders = asyncHandler(async (req, res) => {
 // Update an existing order (status, payments, paymentStatus)
 export const updateOrder = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { 
-        status, 
-        paymentStatus, 
-        payments, 
+    const {
+        status,
+        paymentStatus,
+        payments,
         orderType,
-        additionalDiscount 
+        additionalDiscount
     } = req.body;
     const assignedCompanyId = getAssignedCompanyId(req);
 
@@ -254,7 +262,7 @@ export const updateOrder = asyncHandler(async (req, res) => {
     if (order.status === 'cancelled') {
         throw new ApiError(400, "Cannot update a cancelled order.");
     }
-    
+
     if (order.status === 'delivered' && status === 'cancelled') {
         throw new ApiError(400, "Cannot cancel an already delivered order.");
     }
@@ -271,7 +279,7 @@ export const updateOrder = asyncHandler(async (req, res) => {
         isModified = true;
     }
 
-    if (orderType && ['dinein', 'homeDelivery', 'packing'].includes(orderType)) {
+    if (orderType && ['dinein', 'delivery', 'packing'].includes(orderType)) {
         order.orderType = orderType;
         isModified = true;
     }

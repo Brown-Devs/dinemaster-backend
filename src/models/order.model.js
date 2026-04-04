@@ -79,7 +79,7 @@ const OrderSchema = new Schema({
     },
     orderType: {
         type: String,
-        enum: ['dinein', 'homeDelivery', 'packing'],
+        enum: ['dinein', 'delivery', 'packing'],
         required: true
     },
     createdBy: {
