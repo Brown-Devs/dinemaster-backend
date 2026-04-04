@@ -185,7 +185,7 @@ export const getBrandProducts = asyncHandler(async (req, res) => {
 
     const totalCount = await BrandProduct.countDocuments(query);
     const products = await BrandProduct.find(query)
-        .populate("category", "name")
+        .populate("category", "name addOns")
         .populate("masterCatalog", "name")
         .sort({ createdAt: -1 })
         .skip(skip)

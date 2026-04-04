@@ -8,6 +8,8 @@ import companyRoutes from "./routes/company.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import masterCatalogRoutes from "./routes/masterCatalog.routes.js";
 import brandProductRoutes from "./routes/brandProduct.routes.js";
+import customerRoutes from "./routes/customer.routes.js";
+import orderRoutes from "./routes/order.routes.js";
 
 const app = express();
 
@@ -49,6 +51,8 @@ app.use("/api/v1/companies", companyRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/master-catalogs", masterCatalogRoutes);
 app.use("/api/v1/brand-products", brandProductRoutes);
+app.use("/api/v1/customers", customerRoutes);
+app.use("/api/v1/orders", orderRoutes);
 
 
 
