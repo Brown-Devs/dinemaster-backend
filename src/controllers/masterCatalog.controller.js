@@ -45,9 +45,9 @@ export const getMasterCatalogs = asyncHandler(async (req, res) => {
 // 2. Fetch all unique string categories organically present within the Master Catalog
 export const getUniqueMasterCategories = asyncHandler(async (req, res) => {
     const categories = await MasterCatalog.distinct("category");
-    
+
     return res.status(200).json(new ApiResponse(
-        200, 
+        200,
         categories.filter(c => c && c.trim() !== "").sort(),
         "Unique master categories fetched successfully."
     ));
@@ -57,7 +57,7 @@ export const getUniqueMasterCategories = asyncHandler(async (req, res) => {
 export const getNotImportedMasterProducts = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, search, category, companyId } = req.query;
     const { assignedCompanyId } = getAssignedCompanyId(req, companyId);
-    
+
     // Step 1: Identify all master product IDs already imported by the company
     const importedIds = await BrandProduct.find({ company: assignedCompanyId, masterCatalog: { $ne: null } })
         .distinct("masterCatalog");
@@ -129,7 +129,7 @@ export const updateMasterProduct = asyncHandler(async (req, res) => {
     }
 
     const { id } = req.params;
-    const { name, category, description, variants, iconURL, active } = req.body;
+    const { name, category, description, variants, imageUrl, active } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new ApiError(400, "Invalid master catalog ID.");
@@ -143,7 +143,7 @@ export const updateMasterProduct = asyncHandler(async (req, res) => {
                 ...(category && { category }),
                 ...(description !== undefined && { description }),
                 ...(variants && { variants }),
-                ...(iconURL && { iconURL }),
+                ...(imageUrl && { imageUrl }),
                 ...(active !== undefined && { active })
             }
         },
