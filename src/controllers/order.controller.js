@@ -120,7 +120,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
 
     await newOrder.save();
-    
+
     // 5. Update customer history
     customer.orders.push(newOrder._id);
     await customer.save();
@@ -299,7 +299,7 @@ export const getOrderStats = asyncHandler(async (req, res) => {
     ]);
 
     const result = stats[0];
-    
+
     // Transform typeBreakdown for easier frontend usage
     const types = ['dinein', 'packing', 'delivery'];
     const statuses = ['new', 'prepared', 'out_for_delivery', 'delivered'];
