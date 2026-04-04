@@ -156,3 +156,30 @@ export const updateMasterProduct = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, updated, "Master catalog product updated successfully."));
 });
+
+// 6. Delete a master catalog product (Super Admin only)
+export const deleteMasterProduct = asyncHandler(async (req, res) => {
+    // Role check
+    if (req.user.systemRole !== "super_admin") {
+        throw new ApiError(403, "Only super admins can delete master catalog products.");
+    }
+
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new ApiError(400, "Invalid master catalog ID.");
+    }
+
+    const deleted = await MasterCatalog.findByIdAndDelete(id);
+
+    if (!deleted) {
+        throw new ApiError(404, "Master catalog product not found.");
+    }
+
+    // Cleanup: Potentially you might want to handle what happens to brand products that reference this master catalog item.
+    // In this system, brand products copy data from the master catalog, but they keep a reference in 'masterCatalog' field.
+    // We should probably set 'masterCatalog' field to null in BrandProduct model for those that were linked.
+    await BrandProduct.updateMany({ masterCatalog: id }, { $set: { masterCatalog: null } });
+
+    return res.status(200).json(new ApiResponse(200, null, "Master catalog product deleted successfully."));
+});
