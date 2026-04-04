@@ -97,10 +97,34 @@ export const getNotImportedMasterProducts = asyncHandler(async (req, res) => {
     }, "Available master products for import fetched successfully."));
 });
 
-// 4. Update a master catalog product (Super Admin only)
+// 4. Create a new master catalog product (Super Admin only)
+export const createMasterProduct = asyncHandler(async (req, res) => {
+    if (req.user.systemRole !== "super_admin") {
+        throw new ApiError(403, "Only super admins can create the master catalog.");
+    }
+
+    const { name, category, description, variants, imageUrl, active } = req.body;
+
+    if (!name || !variants || variants.length === 0) {
+        throw new ApiError(400, "Name and at least one variant are required.");
+    }
+
+    const newProduct = await MasterCatalog.create({
+        name,
+        category,
+        description,
+        variants,
+        imageUrl,
+        active: active !== undefined ? active : true
+    });
+
+    return res.status(201).json(new ApiResponse(201, newProduct, "Master catalog product created successfully."));
+});
+
+// 5. Update a master catalog product (Super Admin only)
 export const updateMasterProduct = asyncHandler(async (req, res) => {
     // Controller-level role enforcement
-    if (req.user.role !== "super_admin") {
+    if (req.user.systemRole !== "super_admin") {
         throw new ApiError(403, "Only super admins can update the master catalog.");
     }
 
