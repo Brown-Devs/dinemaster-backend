@@ -20,7 +20,7 @@ export const createOrder = asyncHandler(async (req, res) => {
         items, 
         additionalDiscount = 0,
         paymentStatus,
-        paymentMode,
+        payments,
         orderType 
     } = req.body;
 
@@ -96,8 +96,13 @@ export const createOrder = asyncHandler(async (req, res) => {
     // or we save customer now to get the ID, then save order, then push to history.
     await customer.save();
 
-    // 3. Create the Order
+    // 3. Generate sequential orderId
+    const lastOrder = await Order.findOne({ company: assignedCompanyId }).sort({ orderId: -1 });
+    const nextOrderId = lastOrder?.orderId ? lastOrder.orderId + 1 : 1;
+
+    // 4. Create the Order
     const newOrder = new Order({
+        orderId: nextOrderId,
         company: assignedCompanyId,
         customer: customer._id,
         items: processedItems,
@@ -106,23 +111,39 @@ export const createOrder = asyncHandler(async (req, res) => {
         totalAmount,
         status: 'new',
         paymentStatus: paymentStatus || 'not_paid',
-        paymentMode,
+        payments: {
+            cashAmount: payments?.cashAmount || 0,
+            onlineAmount: payments?.onlineAmount || 0
+        },
         orderType,
         createdBy
     });
 
     await newOrder.save();
 
-    // 4. Update customer history
+    // 5. Update customer history
     customer.orders.push(newOrder._id);
     await customer.save();
 
     res.status(201).json(new ApiResponse(201, { order: newOrder }, "Order created successfully."));
 });
 
-// Get paginated orders
+// Get paginated orders with advanced filters
 export const getOrders = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, status, orderType } = req.query;
+    const { 
+        page = 1, 
+        limit = 10, 
+        status, 
+        orderType, 
+        paymentStatus,
+        paymentMode, // cash, online, mix
+        fromDate, 
+        toDate, 
+        minAmount, 
+        maxAmount,
+        searchQuery 
+    } = req.query;
+
     const assignedCompanyId = getAssignedCompanyId(req);
 
     const parsedPage = Math.max(1, parseInt(page, 10));
@@ -131,8 +152,67 @@ export const getOrders = asyncHandler(async (req, res) => {
 
     const query = { company: assignedCompanyId };
     
+    // Status & Type Filters
     if (status) query.status = status;
     if (orderType) query.orderType = orderType;
+    if (paymentStatus) query.paymentStatus = paymentStatus;
+
+    // Payment Mode Filter
+    if (paymentMode === 'cash') {
+        query['payments.cashAmount'] = { $gt: 0 };
+        query['payments.onlineAmount'] = 0;
+    } else if (paymentMode === 'online') {
+        query['payments.onlineAmount'] = { $gt: 0 };
+        query['payments.cashAmount'] = 0;
+    } else if (paymentMode === 'mix') {
+        query['payments.cashAmount'] = { $gt: 0 };
+        query['payments.onlineAmount'] = { $gt: 0 };
+    }
+
+    // Date Filtering
+    if (fromDate || toDate) {
+        query.createdAt = {};
+        if (fromDate) query.createdAt.$gte = new Date(fromDate);
+        if (toDate) query.createdAt.$lte = new Date(toDate);
+    }
+
+    // Amount Filtering
+    if (minAmount || maxAmount) {
+        query.totalAmount = {};
+        if (minAmount) query.totalAmount.$gte = parseFloat(minAmount);
+        if (maxAmount) query.totalAmount.$lte = parseFloat(maxAmount);
+    }
+
+    // Search Logic (Customer Name, Phone, or exact Total Amount)
+    if (searchQuery && searchQuery.trim()) {
+        const escapedSearch = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(escapedSearch, "i");
+
+        // 1. Find customers matching name or mobile
+        const customers = await Customer.find({
+            company: assignedCompanyId,
+            $or: [
+                { name: regex },
+                { mobileNo: regex }
+            ]
+        }).select("_id");
+
+        const customerIds = customers.map(c => c._id);
+
+        // 2. Build OR query for Order
+        const searchConditions = [
+            { customer: { $in: customerIds } }
+        ];
+
+        // If it's a number, also search exact totalAmount or orderId
+        if (!isNaN(parseFloat(searchQuery))) {
+            const numSearch = parseFloat(searchQuery);
+            searchConditions.push({ totalAmount: numSearch });
+            searchConditions.push({ orderId: numSearch });
+        }
+
+        query.$or = searchConditions;
+    }
 
     const count = await Order.countDocuments(query);
     const orders = await Order.find(query)
@@ -153,10 +233,16 @@ export const getOrders = asyncHandler(async (req, res) => {
     }, "Orders retrieved successfully."));
 });
 
-// Change status to cancelled or delivered, and update payment status
-export const updateOrderStatus = asyncHandler(async (req, res) => {
+// Update an existing order (status, payments, paymentStatus)
+export const updateOrder = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { status, paymentStatus, paymentMode } = req.body;
+    const { 
+        status, 
+        paymentStatus, 
+        payments, 
+        orderType,
+        additionalDiscount 
+    } = req.body;
     const assignedCompanyId = getAssignedCompanyId(req);
 
     const order = await Order.findOne({ _id: id, company: assignedCompanyId });
@@ -185,8 +271,21 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         isModified = true;
     }
 
-    if (paymentMode && ['cash', 'online'].includes(paymentMode)) {
-        order.paymentMode = paymentMode;
+    if (orderType && ['dinein', 'homeDelivery', 'packing'].includes(orderType)) {
+        order.orderType = orderType;
+        isModified = true;
+    }
+
+    if (payments && (payments.cashAmount !== undefined || payments.onlineAmount !== undefined)) {
+        if (payments.cashAmount !== undefined) order.payments.cashAmount = payments.cashAmount;
+        if (payments.onlineAmount !== undefined) order.payments.onlineAmount = payments.onlineAmount;
+        isModified = true;
+    }
+
+    // If additional discount is updated, recalculate totalAmount
+    if (additionalDiscount !== undefined) {
+        order.additionalDiscount = parseFloat(additionalDiscount) || 0;
+        order.totalAmount = order.subTotal - order.additionalDiscount;
         isModified = true;
     }
 
@@ -196,5 +295,5 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
     await order.save();
 
-    res.status(200).json(new ApiResponse(200, { order }, "Order status updated successfully."));
+    res.status(200).json(new ApiResponse(200, { order }, "Order updated successfully."));
 });

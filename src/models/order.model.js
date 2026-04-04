@@ -33,6 +33,10 @@ const OrderItemSchema = new Schema({
 }, { _id: false });
 
 const OrderSchema = new Schema({
+    orderId: {
+        type: Number,
+        index: true
+    },
     company: {
         type: Schema.Types.ObjectId,
         ref: 'Company',
@@ -69,9 +73,9 @@ const OrderSchema = new Schema({
         enum: ['not_paid', 'paid'],
         default: 'not_paid'
     },
-    paymentMode: {
-        type: String,
-        enum: ['cash', 'online']
+    payments: {
+        cashAmount: { type: Number, default: 0 },
+        onlineAmount: { type: Number, default: 0 }
     },
     orderType: {
         type: String,
