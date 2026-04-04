@@ -1,6 +1,6 @@
 import express from "express";
-import { createUser, listUsersBySystemRoleV2, getUserRoleAndPermissions, updateUser } from "../controllers/user.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
+import { createUser, listUsersBySystemRoleV2, getUserRoleAndPermissions, updateUser } from "../controllers/user.controller.js";
 
 const router = express.Router();
 

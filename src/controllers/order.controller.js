@@ -305,3 +305,90 @@ export const updateOrder = asyncHandler(async (req, res) => {
 
     res.status(200).json(new ApiResponse(200, { order }, "Order updated successfully."));
 });
+// Specialized API for the Kitchen Module display
+export const getKitchenOrders = asyncHandler(async (req, res) => {
+    const {
+        page = 1,
+        limit = 10,
+        status,
+        orderType,
+        date
+    } = req.query;
+
+    const assignedCompanyId = getAssignedCompanyId(req);
+
+    const parsedPage = Math.max(1, parseInt(page, 10));
+    const parsedLimit = Math.min(100, parseInt(limit, 10));
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // Normalizing the date (Default: Today 00:00:00 to 23:59:59)
+    const targetDate = date ? new Date(date) : new Date();
+    const start = new Date(targetDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(targetDate);
+    end.setHours(23, 59, 59, 999);
+
+    const baseQuery = {
+        company: assignedCompanyId,
+        createdAt: { $gte: start, $lte: end }
+    };
+
+    // Filter by status if provided (otherwise show all non-cancelled)
+    if (status) {
+        baseQuery.status = status;
+    } else {
+        baseQuery.status = { $ne: 'cancelled' };
+    }
+
+    // 1. Get categorized counts for the entire filtered day (before orderType filter)
+    const countsAggregation = await Order.aggregate([
+        { $match: baseQuery },
+        {
+            $group: {
+                _id: "$orderType",
+                count: { $sum: 1 }
+            }
+        }
+    ]);
+
+    const counts = {
+        dinein: 0,
+        delivery: 0,
+        packing: 0,
+        total: 0
+    };
+
+    countsAggregation.forEach(item => {
+        if (item._id === 'dinein') counts.dinein = item.count;
+        if (item._id === 'delivery') counts.delivery = item.count;
+        if (item._id === 'packing') counts.packing = item.count;
+        counts.total += item.count;
+    });
+
+    // 2. Fetch paginated orders with optional orderType filter
+    const finalQuery = { ...baseQuery };
+    if (orderType) {
+        finalQuery.orderType = orderType;
+    }
+
+    const orders = await Order.find(finalQuery)
+        .populate("customer", "name mobileNo")
+        .populate("items.productId", "name imageUrl")
+        .populate("createdBy", "name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit);
+
+    const totalCount = await Order.countDocuments(finalQuery);
+
+    res.status(200).json(new ApiResponse(200, {
+        orders,
+        counts,
+        pagination: {
+            page: parsedPage,
+            limit: parsedLimit,
+            totalCount,
+            hasNextPage: parsedPage * parsedLimit < totalCount
+        }
+    }, "Kitchen orders retrieved successfully."));
+});
