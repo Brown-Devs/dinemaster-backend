@@ -387,7 +387,9 @@ export const getKitchenOrders = asyncHandler(async (req, res) => {
         limit = 10,
         status,
         orderType,
-        date
+        date,
+        fromDate,
+        toDate
     } = req.query;
 
     const assignedCompanyId = getAssignedCompanyId(req);
@@ -396,12 +398,20 @@ export const getKitchenOrders = asyncHandler(async (req, res) => {
     const parsedLimit = Math.min(100, parseInt(limit, 10));
     const skip = (parsedPage - 1) * parsedLimit;
 
-    // Normalizing the date (Default: Today 00:00:00 to 23:59:59)
-    const targetDate = date ? new Date(date) : new Date();
-    const start = new Date(targetDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(targetDate);
-    end.setHours(23, 59, 59, 999);
+    // Determine the date range
+    let start, end;
+
+    if (fromDate && toDate) {
+        start = new Date(fromDate);
+        end = new Date(toDate);
+    } else {
+        // Normalizing the date (Default: Today 00:00:00 to 23:59:59)
+        const targetDate = date ? new Date(date) : new Date();
+        start = new Date(targetDate);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(targetDate);
+        end.setHours(23, 59, 59, 999);
+    }
 
     const baseQuery = {
         company: assignedCompanyId,
