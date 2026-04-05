@@ -247,7 +247,7 @@ export const getOrders = asyncHandler(async (req, res) => {
     }, "Orders retrieved successfully."));
 });
 
-// Get summary statistics for orders (Detailed Revamp)
+// Get summary statistics for orders (Backend Aggregated)
 export const getOrderStats = asyncHandler(async (req, res) => {
     const assignedCompanyId = getAssignedCompanyId(req);
 
@@ -260,70 +260,51 @@ export const getOrderStats = asyncHandler(async (req, res) => {
         {
             $match: {
                 company: new mongoose.Types.ObjectId(assignedCompanyId),
-                createdAt: { $gte: startOfToday, $lte: endOfToday }
+                createdAt: { $gte: startOfToday, $lte: endOfToday },
+                status: { $ne: 'cancelled' } // Explicitly exclude cancelled orders
             }
         },
         {
             $facet: {
                 todayTotal: [{ $count: "count" }],
+                statusBreakdown: [
+                    { $group: { _id: "$status", count: { $sum: 1 } } }
+                ],
                 typeBreakdown: [
-                    {
-                        $group: {
-                            _id: { orderType: "$orderType", status: "$status" },
-                            count: { $sum: 1 }
-                        }
-                    }
+                    { $group: { _id: "$orderType", count: { $sum: 1 } } }
                 ],
                 paymentBreakdown: [
-                    {
-                        $group: {
-                            _id: "$paymentStatus",
-                            totalAmount: { $sum: "$totalAmount" },
-                            count: { $sum: 1 },
-                            cashOnly: {
-                                $sum: { $cond: [{ $and: [{ $gt: ["$payments.cashAmount", 0] }, { $eq: ["$payments.onlineAmount", 0] }] }, 1, 0] }
-                            },
-                            onlineOnly: {
-                                $sum: { $cond: [{ $and: [{ $eq: ["$payments.cashAmount", 0] }, { $gt: ["$payments.onlineAmount", 0] }] }, 1, 0] }
-                            },
-                            mixed: {
-                                $sum: { $cond: [{ $and: [{ $gt: ["$payments.cashAmount", 0] }, { $gt: ["$payments.onlineAmount", 0] }] }, 1, 0] }
-                            },
-                            cashAmount: { $sum: "$payments.cashAmount" },
-                            onlineAmount: { $sum: "$payments.onlineAmount" }
-                        }
-                    }
+                    { $group: { _id: "$paymentStatus", count: { $sum: 1 } } }
                 ]
             }
         }
     ]);
 
-    const result = stats[0];
+    const raw = stats[0];
 
-    // Transform typeBreakdown for easier frontend usage
-    const types = ['dinein', 'packing', 'delivery'];
-    const statuses = ['new', 'prepared', 'out_for_delivery', 'delivered'];
-    const typeSummary = {};
+    // Helper to get count from simple aggregation result
+    const getCount = (array, id) => array?.find(i => i._id === id)?.count || 0;
 
-    types.forEach(type => {
-        typeSummary[type] = {};
-        statuses.forEach(status => {
-            const found = result.typeBreakdown?.find(b => b._id.orderType === type && b._id.status === status);
-            typeSummary[type][status] = found ? found.count : 0;
-        });
-    });
-
-    // Transform paymentBreakdown
-    const paymentSummary = {
-        paid: result.paymentBreakdown?.find(b => b._id === 'paid') || { totalAmount: 0, count: 0, cashOnly: 0, onlineOnly: 0, mixed: 0, cashAmount: 0, onlineAmount: 0 },
-        unpaid: result.paymentBreakdown?.find(b => b._id === 'not_paid') || { totalAmount: 0, count: 0, cashOnly: 0, onlineOnly: 0, mixed: 0, cashAmount: 0, onlineAmount: 0 }
+    const result = {
+        todayTotal: raw.todayTotal[0]?.count || 0,
+        statusCounts: {
+            new: getCount(raw.statusBreakdown, 'new'),
+            prepared: getCount(raw.statusBreakdown, 'prepared'),
+            out_for_delivery: getCount(raw.statusBreakdown, 'out_for_delivery'),
+            delivered: getCount(raw.statusBreakdown, 'delivered')
+        },
+        typeCounts: {
+            dinein: getCount(raw.typeBreakdown, 'dinein'),
+            packing: getCount(raw.typeBreakdown, 'packing'),
+            delivery: getCount(raw.typeBreakdown, 'delivery')
+        },
+        paymentCounts: {
+            paid: getCount(raw.paymentBreakdown, 'paid'),
+            unpaid: getCount(raw.paymentBreakdown, 'not_paid')
+        }
     };
 
-    res.status(200).json(new ApiResponse(200, {
-        todayTotal: result.todayTotal[0]?.count || 0,
-        typeBreakdown: typeSummary,
-        paymentBreakdown: paymentSummary
-    }, "Order statistics retrieved successfully."));
+    res.status(200).json(new ApiResponse(200, result, "Order statistics retrieved successfully."));
 });
 
 // Update an existing order (status, payments, paymentStatus)
