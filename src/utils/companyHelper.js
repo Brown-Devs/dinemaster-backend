@@ -5,10 +5,10 @@ import { ApiError } from "./ApiError.js";
  * for management purposes.
  */
 export const getAssignedCompanyId = (req, companyIdFromBody) => {
-    const { role, company, _id: currentUserId } = req.user;
+    const { systemRole, company, _id: currentUserId } = req.user;
     let assignedCompanyId = company;
 
-    if (role === "super_admin") {
+    if (systemRole === "super_admin") {
         if (!companyIdFromBody) {
             throw new ApiError(400, "Super admin must provide a valid companyId.");
         }

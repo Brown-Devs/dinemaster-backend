@@ -128,21 +128,17 @@ export const createBrandProduct = asyncHandler(async (req, res) => {
         inStock: true,
     });
 
+    // --- Category Handling (Strict ID Check) ---
     if (category) {
-        // Find if category name or ID already exists for this company
-        const isValidId = mongoose.Types.ObjectId.isValid(category);
-        const catQuery = { company: assignedCompanyId };
-        if (isValidId) catQuery._id = category;
-        else catQuery.name = category;
-
-        const existingCategory = await Category.findOne(catQuery);
-        if (existingCategory) {
-            newBrandProduct.category = existingCategory._id;
-        } else if (!isValidId) {
-            // Create new category if name provided doesn't exist
-            const newCat = await Category.create({ name: category, company: assignedCompanyId });
-            newBrandProduct.category = newCat._id;
+        if (!mongoose.Types.ObjectId.isValid(category)) {
+            throw new ApiError(400, "Invalid category ID.");
         }
+
+        const existingCategory = await Category.findOne({ _id: category, company: assignedCompanyId });
+        if (!existingCategory) {
+            throw new ApiError(404, "Category not found or does not belong to your company.");
+        }
+        newBrandProduct.category = existingCategory._id;
     }
 
     await newBrandProduct.save();
@@ -225,16 +221,17 @@ export const updateBrandProduct = asyncHandler(async (req, res) => {
     if (active !== undefined) product.active = active;
     if (inStock !== undefined) product.inStock = inStock;
 
+    // --- Category Handling (Strict ID Check) ---
     if (category) {
-        const isValidId = mongoose.Types.ObjectId.isValid(category);
-        const catQuery = { company: assignedCompanyId };
-        if (isValidId) catQuery._id = category;
-        else catQuery.name = category;
-
-        const existingCategory = await Category.findOne(catQuery);
-        if (existingCategory) {
-            product.category = existingCategory._id;
+        if (!mongoose.Types.ObjectId.isValid(category)) {
+            throw new ApiError(400, "Invalid category ID.");
         }
+
+        const existingCategory = await Category.findOne({ _id: category, company: assignedCompanyId });
+        if (!existingCategory) {
+            throw new ApiError(404, "Category not found or does not belong to your company.");
+        }
+        product.category = existingCategory._id;
     } else if (category === null) {
         product.category = undefined;
     }

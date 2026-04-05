@@ -2,23 +2,7 @@ import Category from "../models/category.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-
-const getAssignedCompanyId = (req, companyIdFromBody) => {
-    // Destructure specifically from req.user (guaranteed present due to authenticate middleware)
-    const { systemRole, company } = req.user;
-    let assignedCompanyId = company;
-
-    if (systemRole === "super_admin") {
-        if (!companyIdFromBody && !assignedCompanyId) {
-            throw new ApiError(400, "Super admin must provide a valid companyId.");
-        }
-        assignedCompanyId = companyIdFromBody || assignedCompanyId;
-    }
-    if (!assignedCompanyId) {
-        throw new ApiError(400, "Company ID could not be resolved.");
-    }
-    return assignedCompanyId;
-};
+import { getAssignedCompanyId } from "../utils/companyHelper.js";
 
 // Helper for regex escaping
 const escapeRegex = (string) => {
@@ -64,7 +48,7 @@ export const createCategory = asyncHandler(async (req, res) => {
 // Get Categories (with pagination and search)
 export const getCategories = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, search, companyId } = req.query;
-    const assignedCompanyId = getAssignedCompanyId(req, companyId);
+    const { assignedCompanyId } = getAssignedCompanyId(req, companyId);
 
     const query = { company: assignedCompanyId };
 
@@ -101,7 +85,7 @@ export const getCategories = asyncHandler(async (req, res) => {
 // Get All Active Categories (No pagination, limited fields, built for dropdowns)
 export const getAllActiveCategories = asyncHandler(async (req, res) => {
     const { search, companyId } = req.query;
-    const assignedCompanyId = getAssignedCompanyId(req, companyId);
+    const { assignedCompanyId } = getAssignedCompanyId(req, companyId);
 
     const query = { 
         company: assignedCompanyId,
@@ -133,7 +117,7 @@ export const updateCategory = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { name, imageUrl, addOns, active, companyId } = req.body;
 
-    const assignedCompanyId = getAssignedCompanyId(req, companyId);
+    const { assignedCompanyId } = getAssignedCompanyId(req, companyId);
 
     const updateData = {};
     if (name) updateData.name = name;
@@ -164,7 +148,7 @@ export const updateCategory = asyncHandler(async (req, res) => {
 // Delete Category
 export const deleteCategory = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const assignedCompanyId = getAssignedCompanyId(req, req.query.companyId || req.body.companyId);
+    const { assignedCompanyId } = getAssignedCompanyId(req, req.query.companyId || req.body.companyId);
 
     const deletedCategory = await Category.findOneAndDelete({ _id: id, company: assignedCompanyId });
 
