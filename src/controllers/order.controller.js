@@ -5,6 +5,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+import User from "../models/user.model.js";
+import { notifyKitchenOfNewOrder } from "../utils/notification.helper.js";
+
 const getAssignedCompanyId = (req) => {
     const { company } = req.user;
     if (!company) {
@@ -120,6 +123,12 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
 
     await newOrder.save();
+
+    // [Push Notifications] Notify kitchen staff of new order
+    // This is async and should not block the response
+    notifyKitchenOfNewOrder(assignedCompanyId, newOrder).catch(err => {
+        console.error('[Notification] Failed to send push:', err);
+    });
 
     // 5. Update customer history
     customer.orders.push(newOrder._id);
