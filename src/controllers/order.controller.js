@@ -24,7 +24,10 @@ export const createOrder = asyncHandler(async (req, res) => {
         additionalDiscount = 0,
         paymentStatus,
         payments,
-        orderType
+        orderType,
+        address,
+        table,
+        notes
     } = req.body;
 
     const assignedCompanyId = getAssignedCompanyId(req);
@@ -119,6 +122,9 @@ export const createOrder = asyncHandler(async (req, res) => {
             onlineAmount: payments?.onlineAmount || 0
         },
         orderType,
+        address,
+        table,
+        notes,
         createdBy
     });
 
@@ -137,6 +143,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     // Explicitly fetch and populate the clean order document
     const finalOrder = await Order.findById(newOrder._id)
         .populate("customer", "name mobileNo")
+        .populate("company")
         .populate("items.productId", "name imageUrl imageURL")
         .populate("createdBy", "name");
 
@@ -239,6 +246,7 @@ export const getOrders = asyncHandler(async (req, res) => {
     const count = await Order.countDocuments(query);
     const orders = await Order.find(query)
         .populate("customer", "name mobileNo")
+        .populate("company")
         .populate("items.productId", "name imageUrl imageURL")
         .populate("createdBy", "name")
         .sort({ createdAt: -1 })
@@ -324,7 +332,10 @@ export const updateOrder = asyncHandler(async (req, res) => {
         paymentStatus,
         payments,
         orderType,
-        additionalDiscount
+        additionalDiscount,
+        address,
+        table,
+        notes
     } = req.body;
     const assignedCompanyId = getAssignedCompanyId(req);
 
@@ -359,6 +370,21 @@ export const updateOrder = asyncHandler(async (req, res) => {
         isModified = true;
     }
 
+    if (address !== undefined) {
+        order.address = address;
+        isModified = true;
+    }
+    
+    if (table !== undefined) {
+        order.table = table;
+        isModified = true;
+    }
+
+    if (notes !== undefined) {
+        order.notes = notes;
+        isModified = true;
+    }
+
     if (payments && (payments.cashAmount !== undefined || payments.onlineAmount !== undefined)) {
         if (payments.cashAmount !== undefined) order.payments.cashAmount = payments.cashAmount;
         if (payments.onlineAmount !== undefined) order.payments.onlineAmount = payments.onlineAmount;
@@ -378,7 +404,12 @@ export const updateOrder = asyncHandler(async (req, res) => {
 
     await order.save();
 
-    res.status(200).json(new ApiResponse(200, { order }, "Order updated successfully."));
+    const updatedOrder = await Order.findById(order._id)
+        .populate("customer", "name mobileNo")
+        .populate("company")
+        .populate("items.productId", "name imageUrl imageURL");
+
+    res.status(200).json(new ApiResponse(200, { order: updatedOrder }, "Order updated successfully."));
 });
 // Specialized API for the Kitchen Module display
 export const getKitchenOrders = asyncHandler(async (req, res) => {
@@ -458,6 +489,7 @@ export const getKitchenOrders = asyncHandler(async (req, res) => {
 
     const orders = await Order.find(finalQuery)
         .populate("customer", "name mobileNo")
+        .populate("company")
         .populate("items.productId", "name imageUrl")
         .populate("createdBy", "name")
         .sort({ createdAt: -1 })

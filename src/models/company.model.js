@@ -24,6 +24,8 @@ const CompanySchema = new Schema({
     gstNo: { type: String },
     logo: { type: String },
     logoKey: { type: String },
+    paymentQr: { type: String },
+    paymentQrKey: { type: String },
     invoiceTerms: { type: String },
     modules: [{ type: String }],
     billing: {

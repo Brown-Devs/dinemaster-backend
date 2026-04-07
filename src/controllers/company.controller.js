@@ -3,6 +3,8 @@ import User from "../models/user.model.js";
 import CompanySubscription from "../models/companySubscription.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import bcrypt from "bcryptjs";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { getAssignedCompanyId } from "../utils/companyHelper.js";
 
 // Create Company
 export const createCompany = async (req, res, next) => {
@@ -124,3 +126,44 @@ export const getCompanies = async (req, res, next) => {
         next(error);
     }
 };
+
+// Get My Company (Admins)
+export const getMyCompany = asyncHandler(async (req, res) => {
+    const { assignedCompanyId } = getAssignedCompanyId(req);
+    const company = await Company.findById(assignedCompanyId);
+    
+    if (!company) {
+        throw new ApiError(404, "Company not found");
+    }
+
+    res.status(200).json({
+        success: true,
+        company
+    });
+});
+
+// Update My Company Branding (Admins)
+export const updateMyCompany = asyncHandler(async (req, res) => {
+    const { assignedCompanyId } = getAssignedCompanyId(req);
+    const company = await Company.findById(assignedCompanyId);
+
+    if (!company) {
+        throw new ApiError(404, "Company not found");
+    }
+
+    const { logo, logoKey, paymentQr, paymentQrKey, invoiceTerms } = req.body;
+
+    if (logo !== undefined) company.logo = logo;
+    if (logoKey !== undefined) company.logoKey = logoKey;
+    if (paymentQr !== undefined) company.paymentQr = paymentQr;
+    if (paymentQrKey !== undefined) company.paymentQrKey = paymentQrKey;
+    if (invoiceTerms !== undefined) company.invoiceTerms = invoiceTerms;
+
+    await company.save();
+
+    res.status(200).json({
+        success: true,
+        message: "Branding updated successfully",
+        company
+    });
+});

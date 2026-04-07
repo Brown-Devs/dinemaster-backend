@@ -82,6 +82,18 @@ const OrderSchema = new Schema({
         enum: ['dinein', 'delivery', 'packing'],
         required: true
     },
+    address: {
+        type: String,
+        trim: true
+    },
+    table: {
+        type: String,
+        trim: true
+    },
+    notes: {
+        type: String,
+        trim: true
+    },
     createdBy: {
         type: Schema.Types.ObjectId,
         ref: 'User',
