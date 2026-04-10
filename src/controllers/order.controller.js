@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 import User from "../models/user.model.js";
-import { notifyKitchenOfNewOrder } from "../utils/notification.helper.js";
+import { notifyKitchenOfNewOrder, notifyKitchenOfOrderUpdate } from "../utils/notification.helper.js";
 
 const getAssignedCompanyId = (req) => {
     const { company } = req.user;
@@ -324,7 +324,7 @@ export const getOrderStats = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, result, "Order statistics retrieved successfully."));
 });
 
-// Update an existing order (status, payments, paymentStatus)
+// Update an existing order (status, payments, paymentStatus, items)
 export const updateOrder = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const {
@@ -335,7 +335,8 @@ export const updateOrder = asyncHandler(async (req, res) => {
         additionalDiscount,
         address,
         table,
-        notes
+        notes,
+        items
     } = req.body;
     const assignedCompanyId = getAssignedCompanyId(req);
 
@@ -374,7 +375,7 @@ export const updateOrder = asyncHandler(async (req, res) => {
         order.address = address;
         isModified = true;
     }
-    
+
     if (table !== undefined) {
         order.table = table;
         isModified = true;
@@ -391,9 +392,40 @@ export const updateOrder = asyncHandler(async (req, res) => {
         isModified = true;
     }
 
-    // If additional discount is updated, recalculate totalAmount
-    if (additionalDiscount !== undefined) {
-        order.additionalDiscount = parseFloat(additionalDiscount) || 0;
+    // Handle items update
+    if (items && Array.isArray(items)) {
+        let newSubTotal = 0;
+        const processedItems = items.map(item => {
+            let itemBasePrice = item.variant?.price || 0;
+            let addonsPrice = 0;
+
+            if (item.addOns && Array.isArray(item.addOns)) {
+                addonsPrice = item.addOns.reduce((sum, addon) => sum + (addon.price || 0), 0);
+            }
+
+            const itemTotal = (itemBasePrice + addonsPrice) * (item.quantity || 1);
+            newSubTotal += itemTotal;
+
+            return {
+                productId: item.productId,
+                categoryId: item.categoryId,
+                name: item.name,
+                variant: item.variant,
+                addOns: item.addOns,
+                quantity: item.quantity
+            };
+        });
+
+        order.items = processedItems;
+        order.subTotal = newSubTotal;
+        isModified = true;
+    }
+
+    // If additional discount is updated, or items were updated, recalculate totalAmount
+    if (additionalDiscount !== undefined || (items && Array.isArray(items))) {
+        if (additionalDiscount !== undefined) {
+            order.additionalDiscount = parseFloat(additionalDiscount) || 0;
+        }
         order.totalAmount = order.subTotal - order.additionalDiscount;
         isModified = true;
     }
@@ -409,8 +441,33 @@ export const updateOrder = asyncHandler(async (req, res) => {
         .populate("company")
         .populate("items.productId", "name imageUrl imageURL");
 
+    // Trigger update notification
+    notifyKitchenOfOrderUpdate(assignedCompanyId, order).catch(err => {
+        console.error('[Notification] Failed to send update push:', err);
+    });
+
     res.status(200).json(new ApiResponse(200, { order: updatedOrder }, "Order updated successfully."));
 });
+
+// Get a single order by ID
+export const getOrderById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const assignedCompanyId = getAssignedCompanyId(req);
+
+    const order = await Order.findOne({ _id: id, company: assignedCompanyId })
+        .populate("customer", "name mobileNo")
+        .populate("items.productId", "name imageUrl imageURL")
+        .populate("items.categoryId", "name")
+        .populate("company")
+        .populate("createdBy", "name");
+
+    if (!order) {
+        throw new ApiError(404, "Order not found.");
+    }
+
+    res.status(200).json(new ApiResponse(200, order, "Order retrieved successfully."));
+});
+
 // Specialized API for the Kitchen Module display
 export const getKitchenOrders = asyncHandler(async (req, res) => {
     const {

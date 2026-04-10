@@ -112,3 +112,38 @@ export const notifyKitchenOfNewOrder = async (companyId, order) => {
         console.error('[WebPush] Error notifying kitchen staff:', error);
     }
 };
+
+/**
+ * Send notification to kitchen staff for an updated order
+ * @param {String} companyId - The ID of the company
+ * @param {Object} order - The order document
+ */
+export const notifyKitchenOfOrderUpdate = async (companyId, order) => {
+    try {
+        const kitchenStaff = await User.find({
+            company: companyId,
+            systemRole: 'subadmin',
+            permissions: {
+                $in: ['kitchen.view', 'kitchen.update']
+            },
+            active: true
+        }).select('_id').lean();
+
+        const staffIds = kitchenStaff.map(u => u._id);
+        if (staffIds.length === 0) return;
+
+        const payload = {
+            title: 'Order Updated!',
+            body: `Order #${order.orderId} was updated. Total: ₹${order.totalAmount}`,
+            url: `/dashboard/kitchen`,
+            data: {
+                orderId: order._id,
+                type: 'update_order'
+            }
+        };
+
+        await sendWebPushToUsers(staffIds, payload);
+    } catch (error) {
+        console.error('[WebPush] Error notifying kitchen staff of update:', error);
+    }
+};
